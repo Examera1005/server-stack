@@ -1,0 +1,7 @@
+# Place your Deezer ARL token here without newlines or extra spaces
+# To get your ARL cookie:
+# 1. Open deezer.com in browser and log in
+# 2. Press F12 -> Application/Storage -> Cookies -> deezer.com
+# 3. Copy the value of cookie named 'arl'
+# 4. Save to .arl
+YOUR_DEEZER_ARL_COOKIE_HERE

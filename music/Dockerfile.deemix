@@ -1,0 +1,6 @@
+FROM python:3.11-slim
+RUN pip install --no-cache-dir deemix
+COPY patch_deezer.py /patch_deezer.py
+RUN python3 /patch_deezer.py
+WORKDIR /music
+ENTRYPOINT ["deemix"]

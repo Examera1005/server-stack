@@ -1,0 +1,151 @@
+services:
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    user: "1000:1000"
+    ports:
+      - "4533:4533"
+    environment:
+      - ND_SCANSCHEDULE=1m
+      - ND_LOGLEVEL=info
+      - ND_SESSIONTIMEOUT=24h
+      - ND_MUSICFOLDER=/music
+      - ND_DATAFOLDER=/data
+      - ND_ENABLEDOWNLOADS=true
+      - ND_ENABLESTARSHARING=true
+      - ND_ENABLEFAVOURITES=true
+    volumes:
+      - ./config/navidrome:/data
+      - /mnt/hdd/media/library/music:/music:rw
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  navidrome-maman:
+    image: deluan/navidrome:latest
+    container_name: navidrome-maman
+    user: "1000:1000"
+    ports:
+      - "4536:4533"
+    environment:
+      - ND_SCANSCHEDULE=1m
+      - ND_LOGLEVEL=info
+      - ND_SESSIONTIMEOUT=24h
+      - ND_MUSICFOLDER=/music
+      - ND_DATAFOLDER=/data
+      - ND_ENABLEDOWNLOADS=true
+      - ND_ENABLESTARSHARING=true
+      - ND_ENABLEFAVOURITES=true
+    volumes:
+      - ./config/navidrome_maman:/data
+      - /mnt/hdd/media/library/music_maman:/music:rw
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 384M
+
+  navidrome-roland:
+    image: deluan/navidrome:latest
+    container_name: navidrome-roland
+    user: "1000:1000"
+    ports:
+      - "4537:4533"
+    environment:
+      - ND_SCANSCHEDULE=1m
+      - ND_LOGLEVEL=info
+      - ND_SESSIONTIMEOUT=24h
+      - ND_MUSICFOLDER=/music
+      - ND_DATAFOLDER=/data
+      - ND_ENABLEDOWNLOADS=true
+      - ND_ENABLESTARSHARING=true
+      - ND_ENABLEFAVOURITES=true
+    volumes:
+      - ./config/navidrome_roland:/data
+      - /mnt/hdd/media/library/music_roland:/music:rw
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 384M
+
+  music-search-web:
+    build: ./web_app
+    container_name: music-search-web
+    ports:
+      - "4535:4535"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /mnt/hdd/media/library/music:/mnt/hdd/media/library/music
+      - /mnt/hdd/media/library/music_maman:/mnt/hdd/media/library/music_maman
+      - /mnt/hdd/media/library/music_roland:/mnt/hdd/media/library/music_roland
+      - ./config/deemix:/home/thelio/server-stack/music/config/deemix
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  spotdl-web:
+    image: spotdl/spotify-downloader:latest
+    container_name: spotdl-web
+    user: "1000:1000"
+    command: web --host 0.0.0.0 --port 4534 --web-use-output-dir --output "/music/{artist}/{album}/{artist} - {title}.{output-ext}"
+    ports:
+      - "4534:4534"
+    volumes:
+      - /mnt/hdd/media/library/music:/music
+      - ./config/spotdl:/home/spotdl/.spotdl
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  slskd:
+    image: slskd/slskd:latest
+    container_name: slskd
+    environment:
+      - SLSKD_REMOTE_CONFIGURATION=true
+      - PUID=1000
+      - PGID=1000
+      - TZ=Auto
+    ports:
+      - "5030:5030"
+      - "50300:50300"
+    volumes:
+      - ./config/slskd:/app/config
+      - /mnt/hdd/media/library/music:/music
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 384M
+
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    container_name: lidarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Auto
+    ports:
+      - "8686:8686"
+    volumes:
+      - ./config/lidarr:/config
+      - /mnt/hdd/media/library/music:/music
+      - /mnt/hdd/media:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M

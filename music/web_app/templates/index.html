@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>StreamVault — Music Discovery & Server Sync</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #09090b;
+            --surface: #121215;
+            --surface-hover: #1a1a20;
+            --surface-card: #141418;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.18);
+            
+            --accent: #10b981;
+            --accent-hover: #059669;
+            --accent-glow: rgba(16, 185, 129, 0.16);
+            
+            --text-primary: #f4f4f5;
+            --text-secondary: #a1a1aa;
+            --text-muted: #52525b;
+            
+            --radius-xl: 20px;
+            --radius-lg: 14px;
+            --radius-md: 10px;
+            --radius-sm: 6px;
+            
+            --transition-smooth: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+            max-width: 100vw;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding-bottom: calc(90px + env(safe-area-inset-bottom));
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Top Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(9, 9, 11, 0.88);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            width: 100%;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            flex-shrink: 0;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.05));
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+            font-size: 1.1rem;
+            font-weight: 800;
+        }
+
+        .brand-text {
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .nav-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: var(--transition-smooth);
+            touch-action: manipulation;
+            white-space: nowrap;
+        }
+
+        .nav-btn:hover, .nav-btn:active {
+            color: var(--text-primary);
+            background: var(--surface-hover);
+            border-color: var(--border-hover);
+        }
+
+        /* Destination Selector Widget */
+        .dest-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: var(--radius-lg);
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .dest-info {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dest-options {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .dest-btn {
+            padding: 6px 12px;
+            border-radius: var(--radius-md);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            touch-action: manipulation;
+            white-space: nowrap;
+        }
+
+        .dest-btn.active {
+            background: var(--accent);
+            color: #052e16;
+            border-color: var(--accent);
+            font-weight: 700;
+        }
+
+        /* Layout */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 20px auto 0;
+            padding: 0 16px;
+        }
+
+        /* History Widget (LocalStorage) */
+        .history-section {
+            margin-bottom: 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 14px 16px;
+            display: none;
+            animation: fadeIn 0.3s ease-out forwards;
+            width: 100%;
+        }
+
+        .history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .history-title {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .history-clear {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.76rem;
+            cursor: pointer;
+            padding: 4px 6px;
+        }
+
+        .history-chips {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            width: 100%;
+        }
+
+        .history-chips::-webkit-scrollbar {
+            display: none;
+        }
+
+        .history-chip {
+            flex: 0 0 auto;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+
+        .history-chip-icon {
+            color: var(--accent);
+        }
+
+        /* Search Area */
+        .search-area {
+            margin-bottom: 16px;
+            width: 100%;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 4px 4px 4px 14px;
+            border-radius: var(--radius-xl);
+            transition: var(--transition-smooth);
+            width: 100%;
+        }
+
+        .search-box:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 0.92rem;
+            font-weight: 500;
+            min-width: 0;
+            width: 100%;
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .btn-search {
+            background: var(--accent);
+            color: #052e16;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius-lg);
+            font-weight: 700;
+            font-size: 0.86rem;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            touch-action: manipulation;
+            flex-shrink: 0;
+        }
+
+        .btn-search:hover, .btn-search:active {
+            background: var(--accent-hover);
+            color: #fff;
+        }
+
+        /* Section Heading & Tabs */
+        .section-header {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Filter Tabs */
+        .tabs {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            flex-shrink: 0;
+        }
+
+        .tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tab {
+            padding: 6px 12px;
+            border-radius: var(--radius-md);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            white-space: nowrap;
+            touch-action: manipulation;
+        }
+
+        .tab.active {
+            color: var(--accent);
+            background: var(--accent-glow);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        /* Grid & Cards */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+            gap: 16px;
+            width: 100%;
+        }
+
+        .card {
+            background: var(--surface-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation-delay: calc(var(--i, 0) * 35ms);
+            transition: var(--transition-smooth);
+            min-width: 0;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: var(--border-hover);
+            box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.5);
+        }
+
+        .card-cover-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            background: #18181b;
+            margin-bottom: 10px;
+        }
+
+        .card-cover {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+            display: block;
+        }
+
+        .card-title {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            margin-bottom: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        .card-artist {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        /* Custom Mobile Preview Play Button */
+        .btn-preview {
+            width: 100%;
+            min-height: 36px;
+            padding: 6px 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: var(--radius-md);
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            transition: var(--transition-smooth);
+            touch-action: manipulation;
+        }
+
+        .btn-preview:hover, .btn-preview:active {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .btn-preview.playing {
+            background: var(--accent-glow);
+            border-color: var(--accent);
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .btn-download {
+            margin-top: auto;
+            width: 100%;
+            min-height: 38px;
+            padding: 6px 10px;
+            background: var(--surface-hover);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: var(--radius-md);
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: var(--transition-smooth);
+            touch-action: manipulation;
+            text-align: center;
+        }
+
+        .btn-download:hover, .btn-download:active {
+            background: var(--accent);
+            color: #052e16;
+            border-color: var(--accent);
+            box-shadow: 0 4px 14px var(--accent-glow);
+        }
+
+        /* Footer & Legal */
+        .footer {
+            margin-top: 40px;
+            padding: 20px 16px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.76rem;
+            width: 100%;
+        }
+
+        .footer-links {
+            margin-top: 8px;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 2px 4px;
+        }
+
+        .footer-links a:hover {
+            color: var(--accent);
+        }
+
+        /* Modal Overlay & Dialog */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.86);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+
+        .modal-content {
+            background: #121215;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            width: 100%;
+            max-width: 560px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+            animation: fadeIn 0.25s ease-out;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .modal-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.4rem;
+            cursor: pointer;
+            padding: 2px 6px;
+        }
+
+        .modal-body {
+            font-size: 0.82rem;
+            line-height: 1.5;
+            color: var(--text-secondary);
+        }
+
+        .modal-body h4 {
+            color: var(--text-primary);
+            margin: 10px 0 4px;
+            font-size: 0.86rem;
+        }
+
+        .modal-body p {
+            margin-bottom: 8px;
+        }
+
+        /* Welcome User-Selection Popup (Huge Responsive Modal) */
+        #userSelectModal .modal-content {
+            max-width: 680px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 50px rgba(16, 185, 129, 0.15);
+            text-align: center;
+            padding: 32px 24px;
+        }
+
+        .welcome-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--accent-glow);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--accent);
+            padding: 6px 14px;
+            border-radius: var(--radius-xl);
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .welcome-heading {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .welcome-subtext {
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+            margin-bottom: 28px;
+            max-width: 480px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.4;
+        }
+
+        .user-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            width: 100%;
+        }
+
+        .user-card {
+            background: var(--surface-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px 14px;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            touch-action: manipulation;
+        }
+
+        .user-card:hover, .user-card:active {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+            background: rgba(16, 185, 129, 0.08);
+            box-shadow: 0 12px 30px rgba(16, 185, 129, 0.2);
+        }
+
+        .user-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--surface-hover);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            transition: var(--transition-smooth);
+        }
+
+        .user-card:hover .user-avatar {
+            border-color: var(--accent);
+            transform: scale(1.08);
+        }
+
+        .user-name {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .user-dest {
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Strict Mobile Media Query */
+        @media (max-width: 640px) {
+            .header {
+                padding: 10px 14px;
+            }
+            .brand-text {
+                font-size: 0.95rem;
+            }
+            .nav-btn {
+                padding: 6px 8px;
+                font-size: 0.75rem;
+            }
+            .container {
+                padding: 0 12px;
+                margin-top: 14px;
+            }
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            .tabs {
+                width: 100%;
+            }
+            .tab {
+                flex: 1;
+                text-align: center;
+            }
+            .grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+                width: 100%;
+            }
+            .card {
+                padding: 10px;
+                border-radius: var(--radius-md);
+                width: 100%;
+            }
+            .card-title {
+                font-size: 0.84rem;
+            }
+            .card-artist {
+                font-size: 0.74rem;
+            }
+            .btn-preview {
+                font-size: 0.74rem;
+                min-height: 34px;
+                padding: 4px 6px;
+            }
+            .btn-download {
+                font-size: 0.74rem;
+                padding: 6px 4px;
+                min-height: 36px;
+            }
+            /* User selection popup mobile layout */
+            #userSelectModal .modal-content {
+                padding: 24px 16px;
+            }
+            .welcome-heading {
+                font-size: 1.3rem;
+            }
+            .welcome-subtext {
+                font-size: 0.84rem;
+                margin-bottom: 20px;
+            }
+            .user-cards-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .user-card {
+                flex-direction: row;
+                padding: 14px;
+                text-align: left;
+                gap: 14px;
+            }
+            .user-avatar {
+                width: 44px;
+                height: 44px;
+                font-size: 1.4rem;
+            }
+        }
+
+        /* Mobile Toast */
+        #toast {
+            position: fixed;
+            bottom: calc(16px + env(safe-area-inset-bottom));
+            left: 12px;
+            right: 12px;
+            background: #141418;
+            border: 1px solid var(--accent);
+            color: var(--text-primary);
+            padding: 10px 14px;
+            border-radius: var(--radius-md);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+            display: none;
+            z-index: 1000;
+            font-size: 0.82rem;
+            font-weight: 600;
+            text-align: center;
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .loader {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px 0;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="brand">
+            <div class="brand-logo">⚡</div>
+            <div class="brand-text">StreamVault</div>
+        </div>
+        <div class="header-actions">
+            <button class="nav-btn" onclick="openModal('userSelectModal')">👤 Profils</button>
+            <a href="http://100.123.175.80:4536" target="_blank" class="nav-btn" style="border-color: rgba(16,185,129,0.3); color: var(--accent);">👩‍👧 Navidrome Maman</a>
+            <a href="http://100.123.175.80:4537" target="_blank" class="nav-btn" style="border-color: rgba(16,185,129,0.3); color: #3b82f6;">🎧 Navidrome Roland</a>
+            <a href="http://100.123.175.80:4533" target="_blank" class="nav-btn">📻 Navidrome Thélio</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Destination Selector Bar (Can still be changed anytime) -->
+        <div class="dest-bar">
+            <div class="dest-info">
+                <span>🎯 Destination de l'ajout :</span>
+                <span id="destStatusText" style="color: var(--accent); font-weight: 700;">Bibliothèque de Maman (Port 4536)</span>
+            </div>
+            <div class="dest-options">
+                <button class="dest-btn active" id="btnDestMaman" onclick="setDestination('maman')">👩‍👧 Pour Maman</button>
+                <button class="dest-btn" id="btnDestRoland" onclick="setDestination('roland')">🎧 Pour Roland</button>
+                <button class="dest-btn" id="btnDestThelio" onclick="setDestination('thelio')">👤 Pour Thélio</button>
+            </div>
+        </div>
+
+        <!-- LocalStorage History Widget -->
+        <div id="historySection" class="history-section">
+            <div class="history-header">
+                <div class="history-title">⚡ Derniers morceaux ajoutés</div>
+                <button class="history-clear" onclick="clearHistory()">Effacer</button>
+            </div>
+            <div id="historyChips" class="history-chips">
+                <!-- Populated via LocalStorage -->
+            </div>
+        </div>
+
+        <!-- Search Area -->
+        <div class="search-area">
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="Artiste, titre, album (ex: Daft Punk, Celine Dion, Johnny Hallyday)..." onkeyup="handleKeyUp(event)">
+                <button class="btn-search" onclick="triggerSearch()">Chercher</button>
+            </div>
+        </div>
+
+        <!-- Section Header & Tabs -->
+        <div class="section-header">
+            <div id="sectionTitle" class="section-title">🔥 Découvertes & Tendances</div>
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('track', this)">Morceaux</button>
+                <button class="tab" onclick="switchTab('artist', this)">Artistes</button>
+                <button class="tab" onclick="switchTab('album', this)">Albums</button>
+            </div>
+        </div>
+
+        <!-- Dynamic Results Grid -->
+        <div id="resultsGrid" class="grid">
+            <div class="loader">Chargement des tendances...</div>
+        </div>
+
+        <!-- Footer with Legal Links -->
+        <footer class="footer">
+            <p>© 2026 StreamVault — Application Auto-Hébergée</p>
+            <div class="footer-links">
+                <a href="#" onclick="openModal('legalModal', event)">Mentions Légales</a>
+                <span>•</span>
+                <a href="#" onclick="openModal('privacyModal', event)">Confidentialité</a>
+                <span>•</span>
+                <a href="#" onclick="openModal('copyrightModal', event)">Droits d'Auteur</a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"></div>
+
+    <!-- HUGE RESPONSIVE POPUP: Qui Êtes-Vous ? (Always pops up on reload) -->
+    <div id="userSelectModal" class="modal-overlay" style="display: flex;">
+        <div class="modal-content">
+            <div class="welcome-badge">⚡ Bienvenue sur StreamVault</div>
+            <h2 class="welcome-heading">Qui utilise l'application ?</h2>
+            <p class="welcome-subtext">Sélectionnez votre profil pour que vos ajouts de musique soient envoyés directement sur votre serveur Navidrome personnel.</p>
+            
+            <div class="user-cards-grid">
+                <div class="user-card" onclick="selectUserFromModal('maman')">
+                    <div class="user-avatar">👩‍👧</div>
+                    <div>
+                        <div class="user-name">Maman</div>
+                        <div class="user-dest">Navidrome (Port 4536)</div>
+                    </div>
+                </div>
+
+                <div class="user-card" onclick="selectUserFromModal('roland')">
+                    <div class="user-avatar">🎧</div>
+                    <div>
+                        <div class="user-name">Roland</div>
+                        <div class="user-dest">Navidrome (Port 4537)</div>
+                    </div>
+                </div>
+
+                <div class="user-card" onclick="selectUserFromModal('thelio')">
+                    <div class="user-avatar">👤</div>
+                    <div>
+                        <div class="user-name">Thélio</div>
+                        <div class="user-dest">Navidrome (Port 4533)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 1: Mentions Légales & Usage Privé -->
+    <div id="legalModal" class="modal-overlay" onclick="closeModalOnOverlay(event, 'legalModal')">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">⚖️ Mentions Légales & Usage Privé</div>
+                <button class="modal-close" onclick="closeModal('legalModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h4>1. Objet et Cadre d'Utilisation</h4>
+                <p>StreamVault est un outil d'exploration et d'indexation musicale auto-hébergé sur un serveur privé local. Il est destiné exclusivement à l'usage personnel, privé et familial de l'administrateur du serveur.</p>
+                
+                <h4>2. Exception pour Copie Privée (Art. L. 122-5 du CPI)</h4>
+                <p>Conformément à l'article L. 122-5 du Code de la Propriété Intellectuelle (France) et aux directives européennes équivalentes, la reproduction d'œuvres n'est autorisée que lorsqu'elle est strictement réservée à l'usage privé du copiste et non destinée à une utilisation collective ou commerciale.</p>
+
+                <h4>3. Non-Affiliation</h4>
+                <p>StreamVault et Navidrome sont des logiciels indépendants et open-source. Ils ne sont ni affiliés, ni sponsorisés, ni approuvés par Deezer S.A., Spotify AB, Google LLC ou tout autre ayant droit ou plateforme de streaming commercial.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Politique de Confidentialité -->
+    <div id="privacyModal" class="modal-overlay" onclick="closeModalOnOverlay(event, 'privacyModal')">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">🔒 Protection des Données</div>
+                <button class="modal-close" onclick="closeModal('privacyModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h4>1. Absences de Traqueurs</h4>
+                <p>StreamVault ne collecte, n'analyse et ne retransmet aucune donnée personnelle vers aucun serveur tiers ou régie publicitaire.</p>
+                
+                <h4>2. Stockage Local (LocalStorage)</h4>
+                <p>L'historique de vos recherches et de vos téléchargements récents est stocké de façon 100% locale dans la mémoire de votre propre navigateur internet (Web LocalStorage). Vous pouvez effacer cet historique à tout moment en cliquant sur "Effacer".</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Avertissement Droits d'Auteur -->
+    <div id="copyrightModal" class="modal-overlay" onclick="closeModalOnOverlay(event, 'copyrightModal')">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">📜 Droits d'Auteur & DMCA</div>
+                <button class="modal-close" onclick="closeModal('copyrightModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h4>1. Responsabilité de l'Utilisateur</h4>
+                <p>L'utilisateur est le seul responsable du respect du droit d'auteur applicable dans sa juridiction concernant le contenu stocké sur son serveur. L'outil ne doit pas être utilisé pour diffuser ou distribuer publiquement des œuvres protégées sans autorisation préalable des ayants droit.</p>
+
+                <h4>2. Respect des Conditions de Service</h4>
+                <p>Toutes les requêtes de prévisualisation et d'exploration de métadonnées sont effectuées via les API publiques ouvertes destinées à l'indexation.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentType = 'track';
+        let selectedDestination = 'maman'; // 'maman' default
+        const STORAGE_KEY = 'streamvault_downloads_history';
+        const USER_KEY = 'streamvault_selected_profile';
+        let currentAudio = null;
+        let currentAudioBtn = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedProfile = localStorage.getItem(USER_KEY);
+            if (savedProfile) {
+                setDestination(savedProfile);
+            }
+            openModal('userSelectModal');
+
+            loadHistoryUI();
+            loadTrending();
+        });
+
+        function selectUserFromModal(profile) {
+            localStorage.setItem(USER_KEY, profile);
+            setDestination(profile);
+            closeModal('userSelectModal');
+            let name = 'Maman';
+            if (profile === 'roland') name = 'Roland';
+            if (profile === 'thelio') name = 'Thélio';
+            showToast(`✨ Bienvenue ${name} ! Vos ajouts iront dans votre Navidrome.`);
+        }
+
+        function setDestination(dest) {
+            selectedDestination = dest;
+            const btnThelio = document.getElementById('btnDestThelio');
+            const btnMaman = document.getElementById('btnDestMaman');
+            const btnRoland = document.getElementById('btnDestRoland');
+            const statusText = document.getElementById('destStatusText');
+
+            [btnThelio, btnMaman, btnRoland].forEach(b => { if(b) b.classList.remove('active'); });
+
+            if (dest === 'maman') {
+                if (btnMaman) btnMaman.classList.add('active');
+                if (statusText) statusText.innerText = 'Bibliothèque de Maman (Port 4536)';
+            } else if (dest === 'roland') {
+                if (btnRoland) btnRoland.classList.add('active');
+                if (statusText) statusText.innerText = 'Bibliothèque de Roland (Port 4537)';
+            } else {
+                if (btnThelio) btnThelio.classList.add('active');
+                if (statusText) statusText.innerText = 'Bibliothèque de Thélio (Port 4533)';
+            }
+        }
+
+        function handleKeyUp(e) {
+            if (e.key === 'Enter') triggerSearch();
+        }
+
+        function switchTab(type, el) {
+            stopAudio();
+            currentType = type;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            
+            const query = document.getElementById('searchInput').value.trim();
+            if (query) {
+                triggerSearch();
+            } else {
+                loadTrending();
+            }
+        }
+
+        async function loadTrending() {
+            stopAudio();
+            const grid = document.getElementById('resultsGrid');
+            document.getElementById('sectionTitle').innerText = '🔥 Découvertes & Tendances';
+            grid.innerHTML = '<div class="loader">Chargement des meilleures suggestions...</div>';
+
+            try {
+                const res = await fetch('/api/trending');
+                const data = await res.json();
+                
+                let list = [];
+                if (currentType === 'artist') list = data.artists || [];
+                else if (currentType === 'album') list = data.albums || [];
+                else list = data.tracks || [];
+                
+                renderResults(list);
+            } catch (err) {
+                grid.innerHTML = '<div class="loader" style="color: #ef4444;">Impossible de charger les suggestions.</div>';
+            }
+        }
+
+        async function triggerSearch() {
+            stopAudio();
+            const query = document.getElementById('searchInput').value.trim();
+            const grid = document.getElementById('resultsGrid');
+            
+            if (!query) {
+                loadTrending();
+                return;
+            }
+
+            document.getElementById('sectionTitle').innerText = `Résultats pour "${query}"`;
+            grid.innerHTML = '<div class="loader">Recherche en cours...</div>';
+
+            try {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&type=${currentType}`);
+                const data = await res.json();
+                renderResults(data.data || []);
+            } catch (err) {
+                grid.innerHTML = '<div class="loader" style="color: #ef4444;">Erreur lors de la recherche.</div>';
+            }
+        }
+
+        function renderResults(items) {
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = '';
+
+            if (items.length === 0) {
+                grid.innerHTML = '<div class="loader">Aucun résultat trouvé.</div>';
+                return;
+            }
+
+            items.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.style.setProperty('--i', index);
+
+                if (currentType === 'track') {
+                    const cover = item.album ? item.album.cover_medium : '';
+                    const artistName = item.artist ? item.artist.name : 'Artiste';
+                    card.innerHTML = `
+                        <div class="card-cover-wrapper">
+                            <img class="card-cover" src="${cover}" alt="${item.title}" loading="lazy">
+                        </div>
+                        <div class="card-title">${item.title}</div>
+                        <div class="card-artist">${artistName}</div>
+                        ${item.preview ? `
+                            <button class="btn-preview" onclick="toggleAudio(this, '${item.preview}')">
+                                ▶️ Écouter (30s)
+                            </button>
+                        ` : ''}
+                        <button class="btn-download" onclick="downloadItem('${item.link}', '${escapeQuotes(artistName + ' - ' + item.title)}')">
+                            📥 Enregistrer
+                        </button>
+                    `;
+                } else if (currentType === 'artist') {
+                    card.innerHTML = `
+                        <div class="card-cover-wrapper">
+                            <img class="card-cover" src="${item.picture_medium}" alt="${item.name}" loading="lazy">
+                        </div>
+                        <div class="card-title">${item.name}</div>
+                        <div class="card-artist">${item.nb_album ? item.nb_album + ' albums' : 'Artiste'}</div>
+                        <button class="btn-download" onclick="viewArtistTop('${item.id}', '${escapeQuotes(item.name)}')">
+                            🔍 Voir la discographie
+                        </button>
+                    `;
+                } else if (currentType === 'album') {
+                    card.innerHTML = `
+                        <div class="card-cover-wrapper">
+                            <img class="card-cover" src="${item.cover_medium}" alt="${item.title}" loading="lazy">
+                        </div>
+                        <div class="card-title">${item.title}</div>
+                        <div class="card-artist">${item.artist ? item.artist.name : 'Album'}</div>
+                        <button class="btn-download" onclick="downloadItem('${item.link}', '${escapeQuotes(item.title)}')">
+                            📥 Télécharger l'Album
+                        </button>
+                    `;
+                }
+
+                grid.appendChild(card);
+            });
+        }
+
+        /* Mobile Audio Preview Player Toggle */
+        function toggleAudio(btn, previewUrl) {
+            if (currentAudio && currentAudioBtn === btn) {
+                if (currentAudio.paused) {
+                    currentAudio.play();
+                    btn.innerHTML = '⏸️ Pause 30s';
+                    btn.classList.add('playing');
+                } else {
+                    currentAudio.pause();
+                    btn.innerHTML = '▶️ Écouter (30s)';
+                    btn.classList.remove('playing');
+                }
+                return;
+            }
+
+            stopAudio();
+
+            currentAudioBtn = btn;
+            currentAudio = new Audio(previewUrl);
+            btn.innerHTML = '⌛ Chargement...';
+
+            currentAudio.play().then(() => {
+                btn.innerHTML = '⏸️ Pause 30s';
+                btn.classList.add('playing');
+            }).catch(err => {
+                console.error("Playback failed:", err);
+                btn.innerHTML = '▶️ Écouter (30s)';
+                btn.classList.remove('playing');
+                showToast("⚠️ Échec de la lecture sur ce navigateur mobile.");
+            });
+
+            currentAudio.onended = () => {
+                btn.innerHTML = '▶️ Écouter (30s)';
+                btn.classList.remove('playing');
+                currentAudio = null;
+                currentAudioBtn = null;
+            };
+        }
+
+        function stopAudio() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            if (currentAudioBtn) {
+                currentAudioBtn.innerHTML = '▶️ Écouter (30s)';
+                currentAudioBtn.classList.remove('playing');
+                currentAudioBtn = null;
+            }
+        }
+
+        async function viewArtistTop(artistId, artistName) {
+            stopAudio();
+            const grid = document.getElementById('resultsGrid');
+            document.getElementById('sectionTitle').innerText = `Discographie de ${artistName}`;
+            grid.innerHTML = `<div class="loader">Chargement des morceaux de ${artistName}...</div>`;
+
+            try {
+                const res = await fetch(`/api/artist/${artistId}`);
+                const data = await res.json();
+                renderResults(data.top_tracks || []);
+            } catch (err) {
+                showToast("Erreur lors de la récupération des titres");
+            }
+        }
+
+        async function downloadItem(url, title) {
+            let destLabel = 'Navidrome Thélio';
+            if (selectedDestination === 'maman') destLabel = 'Navidrome Maman';
+            else if (selectedDestination === 'roland') destLabel = 'Navidrome Roland';
+
+            showToast(`🚀 Lancement : ${title} → ${destLabel}...`);
+            try {
+                const res = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url, title: title, target: selectedDestination })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    showToast(`✅ ${title} envoyé dans ${destLabel} !`);
+                    saveToLocalStorage(`${title} (${selectedDestination})`);
+                } else {
+                    showToast(`❌ Erreur: ${data.error}`);
+                }
+            } catch (err) {
+                showToast(`❌ Échec de la connexion au serveur.`);
+            }
+        }
+
+        /* LocalStorage History Functions */
+        function saveToLocalStorage(title) {
+            let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            history = history.filter(item => item !== title);
+            history.unshift(title);
+            if (history.length > 8) history.pop();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+            loadHistoryUI();
+        }
+
+        function loadHistoryUI() {
+            const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            const section = document.getElementById('historySection');
+            const container = document.getElementById('historyChips');
+
+            if (history.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            container.innerHTML = history.map(title => `
+                <div class="history-chip">
+                    <span class="history-chip-icon">✓</span>
+                    <span>${title}</span>
+                </div>
+            `).join('');
+        }
+
+        function clearHistory() {
+            localStorage.removeItem(STORAGE_KEY);
+            loadHistoryUI();
+        }
+
+        /* Modal Functions */
+        function openModal(id, e) {
+            if (e) e.preventDefault();
+            document.getElementById(id).style.display = 'flex';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function closeModalOnOverlay(e, id) {
+            if (e.target.classList.contains('modal-overlay')) {
+                closeModal(id);
+            }
+        }
+
+        function escapeQuotes(str) {
+            return (str || '').replace(/'/g, "\\'");
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 4000);
+        }
+    </script>
+</body>
+</html>
