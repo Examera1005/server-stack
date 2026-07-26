@@ -1,8 +1,11 @@
 services:
+  # ============================================================================
+  # Navidrome - Primary Subsonic Music Streaming Server
+  # ============================================================================
   navidrome:
     image: deluan/navidrome:latest
     container_name: navidrome
-    user: "1000:1000"
+    user: "${PUID:-1000}:${PGID:-1000}"
     ports:
       - "4533:4533"
     environment:
@@ -16,6 +19,7 @@ services:
       - ND_ENABLEFAVOURITES=true
     volumes:
       - ./config/navidrome:/data
+      # --- CHANGE HOST PATH BELOW TO YOUR MUSIC LIBRARY ---
       - /mnt/hdd/media/library/music:/music:rw
     restart: unless-stopped
     deploy:
@@ -24,10 +28,14 @@ services:
           cpus: '1.0'
           memory: 512M
 
+  # ============================================================================
+  # OPTIONAL: Secondary Isolated Navidrome Instances (Multi-user libraries)
+  # Comment out these services if you only need a single music library!
+  # ============================================================================
   navidrome-maman:
     image: deluan/navidrome:latest
     container_name: navidrome-maman
-    user: "1000:1000"
+    user: "${PUID:-1000}:${PGID:-1000}"
     ports:
       - "4536:4533"
     environment:
@@ -52,7 +60,7 @@ services:
   navidrome-roland:
     image: deluan/navidrome:latest
     container_name: navidrome-roland
-    user: "1000:1000"
+    user: "${PUID:-1000}:${PGID:-1000}"
     ports:
       - "4537:4533"
     environment:
@@ -74,6 +82,9 @@ services:
           cpus: '0.5'
           memory: 384M
 
+  # ============================================================================
+  # StreamVault - Custom Music Search & Containerized Downloader Web App
+  # ============================================================================
   music-search-web:
     build: ./web_app
     container_name: music-search-web
@@ -92,10 +103,13 @@ services:
           cpus: '0.5'
           memory: 256M
 
+  # ============================================================================
+  # SpotDL Web - Spotify Playlist Downloader UI
+  # ============================================================================
   spotdl-web:
     image: spotdl/spotify-downloader:latest
     container_name: spotdl-web
-    user: "1000:1000"
+    user: "${PUID:-1000}:${PGID:-1000}"
     command: web --host 0.0.0.0 --port 4534 --web-use-output-dir --output "/music/{artist}/{album}/{artist} - {title}.{output-ext}"
     ports:
       - "4534:4534"
@@ -109,14 +123,17 @@ services:
           cpus: '1.0'
           memory: 512M
 
+  # ============================================================================
+  # Slskd - Soulseek Peer-to-Peer Music Downloader Web Interface
+  # ============================================================================
   slskd:
     image: slskd/slskd:latest
     container_name: slskd
     environment:
       - SLSKD_REMOTE_CONFIGURATION=true
-      - PUID=1000
-      - PGID=1000
-      - TZ=Auto
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Auto}
     ports:
       - "5030:5030"
       - "50300:50300"
@@ -130,13 +147,16 @@ services:
           cpus: '0.5'
           memory: 384M
 
+  # ============================================================================
+  # Lidarr - Music Collection Automation
+  # ============================================================================
   lidarr:
     image: lscr.io/linuxserver/lidarr:latest
     container_name: lidarr
     environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Auto
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Auto}
     ports:
       - "8686:8686"
     volumes:

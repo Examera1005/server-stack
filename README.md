@@ -1,24 +1,30 @@
-# 🚀 Server Stack — Homelab & Media Architecture
+# 🚀 Server Stack — Production-Ready Homelab, Media & Music Infrastructure
 
-Bienvenue sur le dépôt **Server Stack**, une solution complète et conteneurisée d'infrastructure homelab dédiée au stockage de photos/vidéos, à la gestion multimédia (films, séries, sous-titres) et à un écosystème musical multi-utilisateurs avancé.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Docker Compose](https://img.shields.io/badge/Docker--Compose-v2%2B-blue.svg)](https://docs.docker.com/compose/)
+[![Architecture](https://img.shields.io/badge/Stack-Immich%20%7C%20Media%20%7C%20Music-emerald.svg)](#-architecture-overview)
 
-> 🔒 **Remarque sur la sécurité :** Tous les secrets, mots de passe de bases de données, tokens API et fichiers SQLite ont été nettoyés de ce dépôt. Des modèles de fichiers de configuration (`.env.example`, `.arl.example`) sont fournis.
+> 🌐 **Language / Langue :** **English** | **[Français (French)](README.fr.md)**
+
+A comprehensive, modular, and containerized **Homelab Infrastructure Stack** designed for automated media management (Movies, TV Shows, Subtitles), AI-driven photo & video backup with Immich, multi-user high-fidelity music streaming with Navidrome, and custom music discovery & downloading via **StreamVault**.
 
 ---
 
-## 🏛️ Vue d'ensemble de l'Architecture
+## 🏛️ Architecture Overview
 
-Cette infrastructure s'articule autour de 3 sous-stacks Docker interconnectées et d'un gestionnaire de mises à jour automatique :
+The repository is structured into isolated, independent sub-stacks that can be deployed individually or together:
 
 ```
 server-stack/
-├── docker-compose.yml          # Watchtower (Mise à jour auto des conteneurs)
-├── immich/                     # Stack Photos & Vidéos avec IA
+├── docker-compose.yml          # Root Watchtower container updater
+├── LICENSE                     # Open-source MIT License
+├── CONTRIBUTING.md             # Contribution guidelines
+├── immich/                     # AI-Powered Photo & Video Backup Stack
 │   ├── docker-compose.yml
 │   └── .env.example
-├── media/                      # Stack Films, Séries & Streaming
+├── media/                      # Movies, TV Shows, Subtitles & Download Pipeline
 │   └── docker-compose.yml
-└── music/                      # Stack Musique Multi-utilisateurs & StreamVault
+└── music/                      # Multi-User Music Streaming & StreamVault UI
     ├── docker-compose.yml
     ├── Dockerfile.deemix
     ├── patch_deezer.py
@@ -26,114 +32,149 @@ server-stack/
     ├── sync-playlists.sh
     ├── star_favourites.py
     ├── delsong.sh
-    └── web_app/                # Application Web StreamVault (Flask + UI)
+    └── web_app/                # StreamVault Custom Web App (Flask + Modern Dark UI)
+        ├── Dockerfile
+        ├── app.py
+        └── templates/index.html
 ```
 
 ---
 
-## 📦 Détail des Stacks et Services
+## 📦 Stack Breakdown & Features
 
-### 1. 🖼️ Stack Immich (Photos & Vidéos)
-- **`immich-server`** : Serveur principal Immich pour la sauvegarde et le visionnage haute performance.
-- **`immich-machine-learning`** : Module IA (reconnaissance faciale, détection d'objets, recherche sémantique CLIP).
-- **`database`** (PostgreSQL 14 + pgvector) : Base de données relationnelle avec support des vecteurs IA.
-- **`redis`** (Valkey) : Gestion des files d'attente de traitement d'images et d'invalidation de cache.
+### 🖼️ 1. Immich Stack (Photos & Videos)
+- **Immich Server**: High-performance photo/video backup server with web and mobile app sync.
+- **Machine Learning Engine**: Facial recognition, object detection, and CLIP semantic search.
+- **PostgreSQL 14 + pgvector**: Vector database for AI search embeddings.
+- **Redis (Valkey)**: Fast cache and job queue processor.
 
-### 2. 🍿 Stack Media (Films, Séries, Streaming)
-- **`jellyfin`** : Serveur de streaming multimédia (transcodage matériel `/dev/dri`).
-- **`qbittorrent`** : Client de téléchargement BitTorrent avec WebUI sécurisée.
-- **`prowlarr`** : Gestionnaire centralisé d'indexeurs BitTorrent / Usenet.
-- **`sonarr`** : Gestionnaire et automatisation du téléchargement des séries TV.
-- **`radarr`** : Gestionnaire et automatisation du téléchargement des films.
-- **`bazarr`** : Recherche et téléchargement automatique des sous-titres (.srt).
-- **`flaresolverr`** : Contournement automatique des protections Cloudflare / CAPTCHA pour les indexeurs.
+### 🍿 2. Media Stack (Movies, TV Shows & Subtitles)
+- **Jellyfin**: Privacy-focused media streaming server with hardware GPU transcoding support (`/dev/dri`).
+- **qBittorrent**: High-speed torrent downloader with Web UI.
+- **Prowlarr**: Indexer manager synchronized with Sonarr/Radarr.
+- **Sonarr**: Automated TV series downloader and organizer.
+- **Radarr**: Automated movie downloader and organizer.
+- **Bazarr**: Automatic subtitleFetcher (.srt).
+- **FlareSolverr**: Cloudflare anti-bot bypass proxy for indexers.
 
-### 3. 🎵 Stack Music & StreamVault (Musique & Automation)
-- **`navidrome`** : Serveur de streaming audio principal Subsonic/Navidrome.
-- **`navidrome-maman`** & **`navidrome-roland`** : Instances de streaming secondaires isolées par utilisateur/bibliothèque.
-- **`music-search-web` (StreamVault)** : Interface web personnalisée (Flask + Javascript) permettant de chercher des artistes, albums, pistes sur Deezer, d'écouter un extrait et d'initier un téléchargement direct vers une bibliothèque spécifique.
-- **`spotdl-web`** : Interface web pour le téléchargement de playlists Spotify via spotdl.
-- **`slskd`** : Client P2P Soulseek autonome avec API Web UI.
-- **`lidarr`** : Automatisation de la gestion et du téléchargement d'albums de musique.
-- **`deemix-local`** : Image Docker construite sur mesure avec des correctifs Python (`patch_deezer.py`) pour le téléchargement FLAC/MP3 depuis Deezer.
-
----
-
-## 🌐 Tableau des Ports & Services
-
-| Service | Port Hôte | Port Conteneur | Description |
-| :--- | :---: | :---: | :--- |
-| **Immich Web UI** | `2283` | `2283` | Interface d'administration et de gestion de photos/vidéos |
-| **Jellyfin** | `8096` | `8096` | Streaming de films, séries et médias |
-| **qBittorrent WebUI** | `8085` | `8080` | Interface de gestion des torrents |
-| **Prowlarr** | `9696` | `9696` | Gestionnaire d'indexeurs |
-| **Sonarr** | `8989` | `8989` | Gestionnaire de séries TV |
-| **Radarr** | `7878` | `7878` | Gestionnaire de films |
-| **Bazarr** | `6767` | `6767` | Gestionnaire de sous-titres |
-| **FlareSolverr** | `8191` | `8191` | Solveur de challenge Cloudflare |
-| **Navidrome (Principal)** | `4533` | `4533` | Streaming musical Subsonic |
-| **Navidrome (Maman)** | `4536` | `4533` | Instance Navidrome dédiée |
-| **Navidrome (Roland)** | `4537` | `4533` | Instance Navidrome dédiée |
-| **StreamVault Web UI** | `4535` | `4535` | App web de recherche & téléchargement musical |
-| **SpotDL Web** | `4534` | `4534` | Interface de téléchargement Spotify |
-| **Slskd (Soulseek)** | `5030` | `5030` | Interface web Soulseek |
-| **Lidarr** | `8686` | `8686` | Gestionnaire de musique |
+### 🎵 3. Music Stack & StreamVault App
+- **Navidrome (Multi-Instance Support)**: Subsonic-compatible music streaming servers with isolated instances for multi-user family libraries.
+- **StreamVault Web Application** (Port `4535`): Custom web interface built with Flask & modern dark glassmorphism design. Features Deezer search, trending charts, preview audio player, and 1-click containerized downloading to target libraries.
+- **SpotDL Web**: Spotify playlist downloader web UI.
+- **Slskd**: Soulseek peer-to-peer audio downloading suite with web interface.
+- **Lidarr**: Automated music collection manager.
+- **Deemix CLI (Patched)**: Custom Docker container built with `patch_deezer.py` to fix edge-case Deezer metadata & tagging issues.
 
 ---
 
-## 🛠️ Scripts & Utilitaires Inclus
+## 🌐 Network & Port Reference Table
 
-Le dossier `music/` inclut plusieurs scripts shell et Python pour automatiser la gestion de la bibliothèque :
-
-- **`deezer-download.sh`** : Télécharge des pistes, albums ou playlists Deezer en résolvant automatiquement les profils utilisateurs vers leurs coups de cœur.
-- **`sync-playlists.sh`** : Synchronise automatiquement les playlists Spotify listées dans `playlists.txt` vers le stockage de musique.
-- **`star_favourites.py`** : Script Python qui marque automatiquement tous les morceaux téléchargés de la playlist *Favourite tracks* comme Favoris (❤️) dans la base SQLite de Navidrome.
-- **`delsong.sh`** : Script interactif pour supprimer un morceau ou artiste de la bibliothèque musicale.
-- **`patch_deezer.py`** : Applique des correctifs directement dans le package Python Deezer/Deemix pour éviter les erreurs lors du téléchargement de métadonnées incomplètes.
+| Service Name | Port (Host:Container) | Service Purpose |
+| :--- | :---: | :--- |
+| **Immich Web UI** | `2283:2283` | Photo & Video Management Dashboard |
+| **Jellyfin** | `8096:8096` | Media Streaming Platform |
+| **qBittorrent WebUI** | `8085:8080` | Torrent Download Manager |
+| **Prowlarr** | `9696:9696` | Torrent / Usenet Indexer Manager |
+| **Sonarr** | `8989:8989` | TV Shows Automation |
+| **Radarr** | `7878:7878` | Movies Automation |
+| **Bazarr** | `6767:6767` | Subtitle Automation |
+| **FlareSolverr** | `8191:8191` | Cloudflare Bypass Proxy |
+| **Navidrome (Primary)** | `4533:4533` | Music Streaming Server |
+| **Navidrome (Secondary 1)**| `4536:4533` | Isolated Music Library Instance |
+| **Navidrome (Secondary 2)**| `4537:4533` | Isolated Music Library Instance |
+| **StreamVault Web UI** | `4535:4535` | Custom Music Discovery & Download Web App |
+| **SpotDL Web UI** | `4534:4534` | Spotify Playlist Downloader |
+| **Slskd (Soulseek)** | `5030:5030` | P2P Music Downloader UI |
+| **Lidarr** | `8686:8686` | Music Automation Manager |
 
 ---
 
-## 🔐 Configuration des Secrets & Lancement
+## 🛠️ Custom Scripts & Automation Utilities
 
-### 1. Pré-requis
+The `music/` stack includes powerful automation tools:
+
+- **`deezer-download.sh`**: Downloads tracks, albums, or playlists from Deezer links using the patched deemix container. Auto-resolves user profile URLs to their Loved Tracks playlist.
+- **`sync-playlists.sh`**: Auto-syncs Spotify playlists listed in `config/spotdl/playlists.txt`.
+- **`star_favourites.py`**: Python script that scans downloaded tracks in `Favourite tracks` folders and bulk-stars them in Navidrome's SQLite database.
+- **`delsong.sh`**: Interactive CLI script to search and delete specific tracks from host storage.
+- **`patch_deezer.py`**: Python script applied during Docker build to patch `deezer-python` and `deemix` library edge cases (missing lyrics, empty barcodes, etc.).
+
+---
+
+## ⚙️ Customization & Configuration Guide
+
+### 1. How to Modify Storage Paths
+By default, compose files mount media directories to `/mnt/hdd/media`. If your storage is located elsewhere (e.g., `/mnt/storage` or `/data/media`):
+- Open `media/docker-compose.yml` or `music/docker-compose.yml`.
+- Search for `/mnt/hdd/media` and replace it with your host storage path.
+
+### 2. How to Enable / Disable Hardware Acceleration (GPU Transcoding)
+- **Intel / AMD iGPU**: In `media/docker-compose.yml` under `jellyfin` and `immich/docker-compose.yml` under `immich-server`, the device `/dev/dri:/dev/dri` is passed.
+- **Nvidia GPU**: To use Nvidia NVENC, install `nvidia-container-toolkit` and update the compose file to include `runtime: nvidia` under services.
+- **CPU Only**: If your host does not have a compatible GPU, simply comment out or remove lines containing `/dev/dri`.
+
+### 3. How to Enable / Disable Extra Navidrome Instances
+If you only need a single music library, open `music/docker-compose.yml` and comment out or delete the `navidrome-maman` and `navidrome-roland` service blocks.
+
+---
+
+## 🚀 Quickstart Installation Guide
+
+### Prerequisites
 - Docker Engine >= 24.0
 - Docker Compose v2
+- Git
 
-### 2. Configuration d'Immich
+### Step 1: Clone Repository
 ```bash
-cd immich
-cp .env.example .env
-```
-Éditez `.env` et modifiez la variable `DB_PASSWORD` avec un mot de passe sécurisé :
-```env
-DB_PASSWORD=votre_mot_de_passe_securise
+git clone https://github.com/YOUR_USERNAME/server-stack.git
+cd server-stack
 ```
 
-### 3. Configuration du Cookie Deezer (Deemix)
-Pour utiliser le téléchargement Deezer, obtenez votre cookie `ARL` sur [deezer.com](https://www.deezer.com) (F12 -> Application -> Cookies -> `arl`) et créez le fichier :
-```bash
-echo "VOTRE_ARL_COOKIE" > music/config/deemix/.arl
-```
+### Step 2: Configure Environment Files & Secrets
 
-### 4. Lancement des Stacks
+1. **Immich Environment Setup:**
+   ```bash
+   cd immich
+   cp .env.example .env
+   ```
+   Edit `.env` and set your secure Postgres database password (`DB_PASSWORD`).
 
-**Démarrage de la stack globale :**
+2. **Deezer ARL Cookie Setup (for Deemix):**
+   ```bash
+   mkdir -p music/config/deemix
+   echo "YOUR_DEEZER_ARL_COOKIE" > music/config/deemix/.arl
+   ```
+   *(To find your ARL: Log into deezer.com in browser -> F12 -> Application -> Cookies -> `arl`)*
+
+### Step 3: Launch Services
+
 ```bash
-# Démarrer Watchtower
+# 1. Start Watchtower (Root)
 docker compose up -d
 
-# Démarrer Immich
+# 2. Start Immich Stack
 cd immich && docker compose up -d && cd ..
 
-# Démarrer la stack Media
+# 3. Start Media Stack
 cd media && docker compose up -d && cd ..
 
-# Démarrer la stack Musique
+# 4. Start Music Stack
 cd music && docker compose up -d && cd ..
 ```
 
 ---
 
-## 📄 Licence & Contribution
+## 🔐 Security & Best Practices
 
-Ce projet est sous licence MIT. N'hésitez pas à adapter ces fichiers Docker Compose et scripts à vos besoins personnels !
+- **Never commit credentials**: All secrets, database passwords, and API tokens are omitted via `.gitignore`.
+- **User Permissions (`PUID`/`PGID`)**: Ensure environment variables match your host user's UID and GID (`id -u` / `id -g`) to avoid permission issues on mounted volumes.
+- **Reverse Proxy**: It is recommended to put these services behind a reverse proxy like **Nginx Proxy Manager**, **Traefik**, or **Cloudflare Tunnels** with SSL certificates (Let's Encrypt / HTTPS).
+
+---
+
+## 📄 License & Contributing
+
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
+
+Contributions are welcome! Please review [`CONTRIBUTING.md`](CONTRIBUTING.md) before submitting pull requests or opening issues.
