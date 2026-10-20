@@ -375,28 +375,44 @@ def get_album(album_id):
         app.logger.error(f"Album error: {e}")
         return jsonify({"error": "Erreur lors de la récupération de l'album"}), 500
 
-def get_metadata_from_url(url, fallback_title, fallback_artist="", fallback_cover=""):
-    meta = {"title": fallback_title, "artist": fallback_artist or "Artiste", "album": fallback_title, "cover": fallback_cover}
+def get_tracks_from_deezer_url(url, fallback_title, fallback_artist="", fallback_cover=""):
+    default_item = [{
+        "title": fallback_title,
+        "artist": fallback_artist or "Artiste",
+        "album": fallback_title,
+        "cover": fallback_cover,
+        "track_num": None
+    }]
     try:
         track_match = re.search(r'track/(\d+)', url)
         if track_match:
             r = requests.get(f"https://api.deezer.com/track/{track_match.group(1)}", timeout=5).json()
-            meta["artist"] = r.get("artist", {}).get("name") or meta["artist"]
-            meta["title"] = r.get("title") or meta["title"]
-            meta["album"] = r.get("album", {}).get("title") or meta["title"]
-            meta["cover"] = r.get("album", {}).get("cover_big") or meta["cover"]
-            return meta
+            return [{
+                "artist": r.get("artist", {}).get("name") or fallback_artist or "Artiste",
+                "title": r.get("title") or fallback_title,
+                "album": r.get("album", {}).get("title") or fallback_title,
+                "cover": r.get("album", {}).get("cover_big") or fallback_cover,
+                "track_num": r.get("track_position")
+            }]
         
         album_match = re.search(r'album/(\d+)', url)
         if album_match:
             r = requests.get(f"https://api.deezer.com/album/{album_match.group(1)}", timeout=5).json()
-            meta["artist"] = r.get("artist", {}).get("name") or meta["artist"]
-            meta["title"] = r.get("title") or meta["title"]
-            meta["album"] = meta["title"]
-            meta["cover"] = r.get("cover_big") or meta["cover"]
+            album_title = r.get("title") or fallback_title
+            album_artist = r.get("artist", {}).get("name") or fallback_artist or "Artiste"
+            album_cover = r.get("cover_big") or fallback_cover
+            tracks_data = r.get("tracks", {}).get("data", [])
+            if tracks_data:
+                return [{
+                    "artist": t.get("artist", {}).get("name") or album_artist,
+                    "title": t.get("title") or fallback_title,
+                    "album": album_title,
+                    "cover": album_cover,
+                    "track_num": idx + 1
+                } for idx, t in enumerate(tracks_data)]
     except Exception as e:
         app.logger.error(f"Error fetching Deezer metadata for {url}: {e}")
-    return meta
+    return default_item
 
 def tag_m4a_file(file_path, meta):
     try:
@@ -406,6 +422,8 @@ def tag_m4a_file(file_path, meta):
         audio["\xa9ART"] = [meta["artist"]]
         audio["aART"] = [meta["artist"]]
         audio["\xa9alb"] = [meta["album"]]
+        if meta.get("track_num"):
+            audio["trkn"] = [(int(meta["track_num"]), 0)]
         if meta.get("cover") and is_valid_url(meta["cover"]):
             img_data = requests.get(meta["cover"], timeout=5).content
             audio["covr"] = [MP4Cover(img_data, imageformat=MP4Cover.FORMAT_JPEG)]
@@ -424,7 +442,7 @@ def perform_download(entry_id, target_url, title, artist, cover_url, music_dest,
         app.logger.info(f"[Download #{entry_id}] Trying Deemix for: {target_url}")
         deemix_cmd = ["deemix", "-p", music_dest, target_url]
         try:
-            res = subprocess.run(deemix_cmd, capture_output=True, text=True, timeout=120)
+            res = subprocess.run(deemix_cmd, capture_output=True, text=True, timeout=180)
             if res.returncode == 0 and "Paste here your arl" not in res.stdout and "Paste here your arl" not in res.stderr:
                 app.logger.info(f"[Download #{entry_id}] Deemix download successful for: {title}")
                 update_history_status(entry_id, "completed")
@@ -435,37 +453,40 @@ def perform_download(entry_id, target_url, title, artist, cover_url, music_dest,
         except Exception as e:
             app.logger.warning(f"[Download #{entry_id}] Deemix exception: {e}")
 
-    # Fallback: Fast native M4A audio stream via yt-dlp + Mutagen tagging (no ffmpeg required)
-    meta = get_metadata_from_url(target_url, title, artist, cover_url)
-    query = f"{meta['artist']} - {meta['title']}"
-    out_dir = os.path.join(music_dest, safe_filename(meta["artist"]), safe_filename(meta["album"]))
-    os.makedirs(out_dir, exist_ok=True)
-    out_file = os.path.join(out_dir, f"{safe_filename(meta['artist'])} - {safe_filename(meta['title'])}.m4a")
+    # Fallback: Fast native M4A audio stream via yt-dlp + Mutagen tagging (supports single tracks & full albums)
+    items = get_tracks_from_deezer_url(target_url, title, artist, cover_url)
+    success_count = 0
+    last_err = ""
 
-    app.logger.info(f"[Download #{entry_id}] Fallback to yt-dlp M4A with query: '{query}' -> {out_file}")
-    ytdlp_cmd = [
-        "yt-dlp",
-        "-f", "ba[ext=m4a]/ba",
-        "--no-playlist",
-        "-o", out_file,
-        f"ytsearch1:{query}"
-    ]
-    try:
-        res = subprocess.run(ytdlp_cmd, capture_output=True, text=True, timeout=120)
-        if res.returncode == 0 and os.path.isfile(out_file):
-            tag_m4a_file(out_file, meta)
-            app.logger.info(f"[Download #{entry_id}] yt-dlp download successful for: {query}")
-            update_history_status(entry_id, "completed")
-            trigger_navidrome_scan(target_dest)
-        else:
-            err_msg = (res.stderr or res.stdout or f"Échec code {res.returncode}").strip()
-            if len(err_msg) > 200:
-                err_msg = err_msg[-200:]
-            app.logger.error(f"[Download #{entry_id}] yt-dlp failed (code {res.returncode}): {err_msg}")
-            update_history_status(entry_id, "failed", error_message=err_msg)
-    except Exception as e:
-        app.logger.error(f"[Download #{entry_id}] yt-dlp exception: {e}")
-        update_history_status(entry_id, "failed", error_message=str(e)[:200])
+    for meta in items:
+        query = f"{meta['artist']} - {meta['title']}"
+        out_dir = os.path.join(music_dest, safe_filename(meta["artist"]), safe_filename(meta["album"]))
+        os.makedirs(out_dir, exist_ok=True)
+        prefix = f"{int(meta['track_num']):02d} - " if meta.get("track_num") and len(items) > 1 else f"{safe_filename(meta['artist'])} - "
+        out_file = os.path.join(out_dir, f"{prefix}{safe_filename(meta['title'])}.m4a")
+
+        ytdlp_cmd = [
+            "yt-dlp",
+            "-f", "ba[ext=m4a]/ba",
+            "--no-playlist",
+            "-o", out_file,
+            f"ytsearch1:{query}"
+        ]
+        try:
+            res = subprocess.run(ytdlp_cmd, capture_output=True, text=True, timeout=120)
+            if res.returncode == 0 and os.path.isfile(out_file):
+                tag_m4a_file(out_file, meta)
+                success_count += 1
+            else:
+                last_err = (res.stderr or res.stdout or f"Échec code {res.returncode}").strip()[-200:]
+        except Exception as e:
+            last_err = str(e)[:200]
+
+    if success_count > 0:
+        update_history_status(entry_id, "completed")
+        trigger_navidrome_scan(target_dest)
+    else:
+        update_history_status(entry_id, "failed", error_message=last_err or "Échec du téléchargement")
 
 @app.route("/api/download", methods=["POST"])
 def download():
