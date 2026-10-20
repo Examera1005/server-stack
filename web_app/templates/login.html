@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Connexion — StreamVault</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="StreamVault">
+    <meta name="theme-color" content="#09090b">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        :root {
+            --bg: #09090b;
+            --surface: #131317;
+            --border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #10b981;
+            --accent-hover: #059669;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.14), transparent 55%), var(--bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            background: rgba(19, 19, 23, 0.9);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px 26px;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(16px);
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .brand img { width: 36px; height: 36px; border-radius: 9px; }
+        .brand-title { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.02em; }
+        .subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            margin-bottom: 24px;
+            line-height: 1.4;
+        }
+        .error-box {
+            background: rgba(239, 68, 68, 0.14);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 0.84rem;
+            margin-bottom: 18px;
+            text-align: center;
+        }
+        .field { margin-bottom: 16px; }
+        .field label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .field input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .field input:focus { border-color: var(--accent); }
+        .btn-submit {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 12px;
+            background: var(--accent);
+            color: #052e16;
+            font-weight: 800;
+            font-size: 0.95rem;
+            cursor: pointer;
+            margin-top: 6px;
+            transition: background 0.2s;
+        }
+        .btn-submit:hover { background: var(--accent-hover); color: #fff; }
+        .helper {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .helper a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="brand">
+            <img src="/static/icon.svg" alt="StreamVault">
+            <span class="brand-title">StreamVault</span>
+        </div>
+        <p class="subtitle">Connectez-vous avec vos identifiants <strong>Navidrome</strong></p>
+
+        {% if error %}
+        <div class="error-box">⚠️ {{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/login">
+            <div class="field">
+                <label for="username">Identifiant Navidrome</label>
+                <input type="text" id="username" name="username" required autocomplete="username" autofocus placeholder="Votre identifiant">
+            </div>
+            <div class="field">
+                <label for="password">Mot de passe</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn-submit">Se connecter</button>
+        </form>
+
+        <div class="helper">
+            Première installation ? Créez d'abord votre compte sur <a href="#" id="navLink" target="_blank">votre serveur Navidrome ↗</a>
+        </div>
+    </div>
+    <script>
+        const port = '{{ navidrome_port | default("4533") }}';
+        const navLink = document.getElementById('navLink');
+        if (navLink) {
+            navLink.href = window.location.protocol === 'https:'
+                ? `https://${window.location.hostname}`
+                : `${window.location.protocol}//${window.location.hostname}:${port}`;
+        }
+    </script>
+</body>
+</html>

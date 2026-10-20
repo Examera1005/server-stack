@@ -22,6 +22,8 @@ services:
   streamvault:
     build: ./web_app
     container_name: streamvault
+    depends_on:
+      - navidrome
     ports:
       - "${STREAMVAULT_PORT:-4535}:4535"
     environment:
@@ -29,6 +31,7 @@ services:
       - DEEMIX_CONFIG_DIR=/root/.config/deemix
       - NAVIDROME_CONTAINER=navidrome
       - NAVIDROME_PORT=${NAVIDROME_PORT:-4533}
+      - NAVIDROME_INTERNAL_URL=http://navidrome:4533
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${MUSIC_DIR:-./music}:/music:rw

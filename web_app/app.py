@@ -1,25 +1,85 @@
 #!/usr/bin/env python3
 import os
 import re
+import secrets
 import shutil
 import sqlite3
 import subprocess
 import threading
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 import requests
-from flask import Flask, render_template, request, jsonify, make_response, send_from_directory
+from flask import (
+    Flask, render_template, request, jsonify,
+    make_response, send_from_directory, session, redirect, url_for
+)
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # 2MB max payload
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=90)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 MUSIC_DIR = os.getenv("MUSIC_DIR", "/music")
 CONFIG_DIR = os.getenv("DEEMIX_CONFIG_DIR", "/root/.config/deemix")
 NAVIDROME_CONTAINER = os.getenv("NAVIDROME_CONTAINER", "navidrome")
 NAVIDROME_PORT = os.getenv("NAVIDROME_PORT", "4533")
+NAVIDROME_INTERNAL_URL = os.getenv("NAVIDROME_INTERNAL_URL", "http://navidrome:4533").rstrip("/")
 DATA_DIR = "/data" if os.path.isdir("/data") else os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(DATA_DIR, "history.db")
+SECRET_KEY_FILE = os.path.join(DATA_DIR, ".secret_key")
+
+def load_or_create_secret_key():
+    env_key = os.getenv("SECRET_KEY")
+    if env_key:
+        return env_key
+    try:
+        if os.path.isfile(SECRET_KEY_FILE):
+            with open(SECRET_KEY_FILE, "r") as f:
+                key = f.read().strip()
+                if len(key) >= 32:
+                    return key
+        key = secrets.token_hex(32)
+        with open(SECRET_KEY_FILE, "w") as f:
+            f.write(key)
+        return key
+    except Exception:
+        return secrets.token_hex(32)
+
+app.secret_key = load_or_create_secret_key()
+
+# Simple brute-force rate limiter per IP
+_LOGIN_ATTEMPTS = {}  # ip -> [timestamps]
+MAX_LOGIN_ATTEMPTS = 6
+LOGIN_WINDOW_SECONDS = 60
+
+def is_rate_limited(ip):
+    now = time.time()
+    attempts = [t for t in _LOGIN_ATTEMPTS.get(ip, []) if now - t < LOGIN_WINDOW_SECONDS]
+    _LOGIN_ATTEMPTS[ip] = attempts
+    return len(attempts) >= MAX_LOGIN_ATTEMPTS
+
+def record_failed_attempt(ip):
+    now = time.time()
+    _LOGIN_ATTEMPTS.setdefault(ip, []).append(now)
+
+def verify_navidrome_credentials(username, password):
+    if not username or not password:
+        return None
+    try:
+        resp = requests.post(
+            f"{NAVIDROME_INTERNAL_URL}/auth/login",
+            json={"username": username, "password": password},
+            timeout=5
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            return data.get("name") or data.get("username") or username
+    except Exception as e:
+        app.logger.error(f"Navidrome auth check error: {e}")
+    return None
 
 TARGET_CONFIG = {
     "main": {"dir": MUSIC_DIR, "container": NAVIDROME_CONTAINER, "label": "Bibliothèque Navidrome"}
@@ -30,6 +90,49 @@ VALID_STATUSES = {"downloading", "completed", "failed"}
 VALID_ITEM_TYPES = {"track", "album", "artist", "custom"}
 VALID_SEARCH_TYPES = {"track", "artist", "album"}
 ALLOWED_AUDIO_EXTENSIONS = {'.mp3', '.flac', '.m4a', '.ogg', '.wav', '.opus', '.aac'}
+PUBLIC_PATHS = {'/login', '/favicon.ico', '/manifest.json', '/apple-touch-icon.png', '/apple-touch-icon-precomposed.png'}
+
+@app.before_request
+def require_auth():
+    path = request.path
+    if path in PUBLIC_PATHS or path.startswith('/static/'):
+        return None
+    if not session.get("user"):
+        if path.startswith('/api/'):
+            return jsonify({"error": "Non authentifié", "auth_required": True}), 401
+        return redirect(url_for("login"))
+    return None
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if session.get("user"):
+        return redirect(url_for("index"))
+
+    error = None
+    if request.method == "POST":
+        client_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip()
+        if is_rate_limited(client_ip):
+            error = "Trop de tentatives. Veuillez patienter 1 minute."
+        else:
+            username = (request.form.get("username") or "").strip()
+            password = request.form.get("password") or ""
+            display_name = verify_navidrome_credentials(username, password)
+            if display_name:
+                session.clear()
+                session.permanent = True
+                session["user"] = display_name
+                _LOGIN_ATTEMPTS.pop(client_ip, None)
+                return redirect(url_for("index"))
+            else:
+                record_failed_attempt(client_ip)
+                error = "Identifiant ou mot de passe Navidrome incorrect."
+
+    return render_template("login.html", error=error, navidrome_port=NAVIDROME_PORT)
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 def is_valid_url(url):
     if not url or not isinstance(url, str):
@@ -179,7 +282,7 @@ def apply_security_headers(response):
 
 @app.route("/")
 def index():
-    resp = make_response(render_template("index.html", navidrome_port=NAVIDROME_PORT))
+    resp = make_response(render_template("index.html", navidrome_port=NAVIDROME_PORT, current_user=session.get("user", "")))
     resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return resp
 
@@ -281,7 +384,6 @@ def perform_download(entry_id, target_url, title, music_dest, target_dest="main"
         update_history_status(entry_id, "failed", error_message="URL invalide ou non autorisée")
         return
 
-    # Attempt 1: Local Deemix CLI (if .arl is present)
     arl_file = os.path.join(CONFIG_DIR, ".arl")
     if os.path.isfile(arl_file) and os.path.getsize(arl_file) > 0:
         app.logger.info(f"[Download #{entry_id}] Trying Deemix for: {target_url}")
@@ -298,7 +400,6 @@ def perform_download(entry_id, target_url, title, music_dest, target_dest="main"
         except Exception as e:
             app.logger.warning(f"[Download #{entry_id}] Deemix exception: {e}")
 
-    # Fallback: Local SpotDL CLI
     query = get_search_query_from_url(target_url, title)
     app.logger.info(f"[Download #{entry_id}] Fallback to SpotDL with query: '{query}' -> {music_dest}")
     spotdl_cmd = [

@@ -1464,6 +1464,9 @@
                 <span class="header-profile-label">Ouvrir Navidrome</span>
                 <span style="font-size: 0.8rem; opacity: 0.7;">↗</span>
             </a>
+            <a href="/logout" class="nav-btn" title="Se déconnecter ({{ current_user }})" style="padding: 8px 11px;">
+                <span>🚪</span>
+            </a>
         </div>
     </header>
 
@@ -1625,7 +1628,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             const navLink = document.getElementById('navidromeHeaderLink');
             if (navLink) {
-                navLink.href = `${window.location.protocol}//${window.location.hostname}:${NAVIDROME_PORT}`;
+                navLink.href = window.location.protocol === 'https:'
+                    ? `https://${window.location.hostname}`
+                    : `${window.location.protocol}//${window.location.hostname}:${NAVIDROME_PORT}`;
             }
 
             try {
