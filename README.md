@@ -1,10 +1,13 @@
-# 🎵 StreamVault + Navidrome — Kit Autonome Clé en Main (HTTPS via Tailscale Funnel)
+# 🎵 StreamVault + Navidrome — Kit Autonome Clé en Main
 
-Ce dépôt contient **tout le nécessaire** pour installer ton propre serveur de streaming musical (**Navidrome**) couplé à **StreamVault** (recherche, extraits 30s, téléchargement en 1 clic, historique & gestion de bibliothèque), **protégé par le compte Navidrome** et accessible partout en **HTTPS** sur iPhone **sans installer de VPN sur le téléphone** (zéro impact sur la batterie).
+Ce dépôt contient **tout le nécessaire** pour installer ton propre serveur de streaming musical (**Navidrome**) couplé à **StreamVault** (recherche, écoute d'extraits 30s, téléchargement de titres et d'albums en 1 clic, historique & gestion de bibliothèque) :
+- **Zéro compte externe / Zéro cookie `.arl` requis** : fonctionne immédiatement dès l'installation.
+- **Authentification unique (SSO)** : StreamVault est protégé par ton compte Navidrome.
+- **Accès HTTPS partout (4G/5G) sans VPN sur l'iPhone** : grâce à Tailscale Funnel côté serveur uniquement (0 % de batterie consommée sur le téléphone).
 
 ---
 
-## ⚡ 1. Installation en Copier-Coller (sur le Serveur / PC / Raspberry Pi)
+## ⚡ 1. Installation en Copier-Coller (Serveur / PC / Raspberry Pi)
 
 ### Pré-requis : Installer Docker (si ce n'est pas déjà fait)
 ```bash
@@ -13,9 +16,9 @@ sudo usermod -aG docker $USER
 newgrp docker
 ```
 
-### Lancer StreamVault + Navidrome
+### Cloner et lancer StreamVault + Navidrome
 ```bash
-git clone <URL_DE_CE_REPO> streamvault
+git clone -b streamvault https://github.com/Examera1005/server-stack.git streamvault
 cd streamvault
 cp .env.example .env
 docker compose up -d --build
@@ -27,11 +30,10 @@ docker compose up -d --build
 
 Tailscale tourne **uniquement sur le serveur** pour fournir un domaine `https://...ts.net` gratuit avec certificat SSL automatique (sans ouvrir de port sur la box internet, et **sans installer Tailscale sur l'iPhone**) :
 
-1. Dans ta console d'administration Tailscale ([login.tailscale.com/admin/dns](https://login.tailscale.com/admin/dns)), active **MagicDNS** et **HTTPS Certificates**, puis dans **Access Controls** autorise `funnel`.
+1. Dans ta console Tailscale ([login.tailscale.com/admin/dns](https://login.tailscale.com/admin/dns)), active **MagicDNS** et **HTTPS Certificates**, puis autorise **Funnel** lorsque le terminal te le propose.
 2. Lance le script automatique sur le serveur :
 
 ```bash
-chmod +x setup-funnel.sh
 ./setup-funnel.sh
 ```
 
@@ -51,7 +53,7 @@ Le script affiche tes 2 adresses HTTPS prêtes à l'emploi :
 ### Étape B : Ajouter l'application **StreamVault** sur l'écran d'accueil iPhone
 1. Sur l'iPhone, ouvre **Safari** et va sur **`https://nom-du-serveur.tailxxxx.ts.net:8443`**.
 2. Appuie sur le bouton **Partager** (carré avec flèche vers le haut) → **« Sur l'écran d'accueil »** → **Ajouter**.
-3. Ouvre l'application **StreamVault** depuis ton écran d'accueil et connecte-toi avec ton identifiant/mot de passe Navidrome (la session reste active 90 jours).
+3. Ouvre **StreamVault** depuis ton écran d'accueil et connecte-toi avec ton identifiant/mot de passe Navidrome (la session reste active 90 jours).
 
 ### Étape C : Installer le lecteur musical sur l'iPhone (Style Spotify / Apple Music)
 Télécharge l'une de ces applications gratuites sur l'**App Store** pour écouter ta musique hors-ligne, en arrière-plan et sur CarPlay :
@@ -62,18 +64,6 @@ Télécharge l'une de ces applications gratuites sur l'**App Store** pour écout
 Dans l'application sur l'iPhone, entre :
 - **Adresse du serveur** : `https://nom-du-serveur.tailxxxx.ts.net`
 - **Utilisateur / Mot de passe** : Ceux créés à l'Étape A.
-
----
-
-## 🔑 4. Activer le téléchargement Haute Qualité Deezer (Optionnel)
-
-Par défaut, **StreamVault fonctionne immédiatement** grâce au fallback **SpotDL**.
-Pour télécharger directement via **Deemix** (FLAC / MP3 320kbps + tags complets) :
-1. Connecte-toi sur [deezer.com](https://www.deezer.com) sur un navigateur (`F12` → **Application/Stockage** → **Cookies** → copie la valeur de **`arl`**).
-2. Colle-la sur le serveur :
-```bash
-echo "COLLE_TON_COOKIE_ARL_ICI" > config/deemix/.arl
-```
 
 ---
 

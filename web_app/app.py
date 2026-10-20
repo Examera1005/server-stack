@@ -23,7 +23,6 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 MUSIC_DIR = os.getenv("MUSIC_DIR", "/music")
-CONFIG_DIR = os.getenv("DEEMIX_CONFIG_DIR", "/root/.config/deemix")
 NAVIDROME_PORT = os.getenv("NAVIDROME_PORT", "4533")
 NAVIDROME_INTERNAL_URL = os.getenv("NAVIDROME_INTERNAL_URL", "http://navidrome:4533").rstrip("/")
 DATA_DIR = "/data" if os.path.isdir("/data") else os.path.dirname(os.path.abspath(__file__))
@@ -436,24 +435,7 @@ def perform_download(entry_id, target_url, title, artist, cover_url, music_dest,
         update_history_status(entry_id, "failed", error_message="URL invalide ou non autorisée")
         return
 
-    # Attempt 1: Local Deemix CLI (if .arl is present)
-    arl_file = os.path.join(CONFIG_DIR, ".arl")
-    if os.path.isfile(arl_file) and os.path.getsize(arl_file) > 0:
-        app.logger.info(f"[Download #{entry_id}] Trying Deemix for: {target_url}")
-        deemix_cmd = ["deemix", "-p", music_dest, target_url]
-        try:
-            res = subprocess.run(deemix_cmd, capture_output=True, text=True, timeout=180)
-            if res.returncode == 0 and "Paste here your arl" not in res.stdout and "Paste here your arl" not in res.stderr:
-                app.logger.info(f"[Download #{entry_id}] Deemix download successful for: {title}")
-                update_history_status(entry_id, "completed")
-                trigger_navidrome_scan(target_dest)
-                return
-            else:
-                app.logger.warning(f"[Download #{entry_id}] Deemix failed (code {res.returncode}): {res.stderr or res.stdout}")
-        except Exception as e:
-            app.logger.warning(f"[Download #{entry_id}] Deemix exception: {e}")
-
-    # Fallback: Fast native M4A audio stream via yt-dlp + Mutagen tagging (supports single tracks & full albums)
+    # Fast native M4A audio stream via yt-dlp + Mutagen tagging (supports single tracks & full albums, zero account needed)
     items = get_tracks_from_deezer_url(target_url, title, artist, cover_url)
     success_count = 0
     last_err = ""

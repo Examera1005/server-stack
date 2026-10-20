@@ -28,11 +28,9 @@ services:
       - "${STREAMVAULT_PORT:-4535}:4535"
     environment:
       - MUSIC_DIR=/music
-      - DEEMIX_CONFIG_DIR=/root/.config/deemix
       - NAVIDROME_PORT=${NAVIDROME_PORT:-4533}
       - NAVIDROME_INTERNAL_URL=http://navidrome:4533
     volumes:
       - ${MUSIC_DIR:-./music}:/music:rw
-      - ./config/deemix:/root/.config/deemix
       - ./config/streamvault:/data
     restart: unless-stopped
