@@ -1,7 +1,10 @@
 .env
-music/
-config/navidrome/
-config/streamvault/
+music/*
+!music/.gitkeep
+config/navidrome/*
+!config/navidrome/.gitkeep
+config/streamvault/*
+!config/streamvault/.gitkeep
 config/deemix/.arl
 config/deemix/arl.txt
 web_app/*.db*
