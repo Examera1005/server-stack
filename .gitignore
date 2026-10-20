@@ -1,0 +1,9 @@
+.env
+music/
+config/navidrome/
+config/streamvault/
+config/deemix/.arl
+config/deemix/arl.txt
+web_app/*.db*
+__pycache__/
+*.pyc

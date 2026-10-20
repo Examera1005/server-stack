@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradients -->
+    <radialGradient id="bgGrad" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#141824"/>
+      <stop offset="60%" stop-color="#090a0f"/>
+      <stop offset="100%" stop-color="#040507"/>
+    </radialGradient>
+    <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.32"/>
+      <stop offset="50%" stop-color="#06b6d4" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Emerald-Cyan Stream Gradients -->
+    <linearGradient id="streamGradTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="50%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+
+    <linearGradient id="streamGradBottom" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="50%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+
+    <linearGradient id="waveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6ee7b7"/>
+      <stop offset="50%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.6"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.4"/>
+    </linearGradient>
+    
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Base App Canvas -->
+  <rect width="512" height="512" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle Ambient Glow -->
+  <circle cx="256" cy="256" r="210" fill="url(#glowGrad)"/>
+
+  <!-- Outer Vault Shield Ring -->
+  <circle cx="256" cy="256" r="204" fill="none" stroke="url(#ringGrad)" stroke-width="3.5" opacity="0.8"/>
+  <circle cx="256" cy="256" r="192" fill="none" stroke="#10b981" stroke-width="1.5" stroke-dasharray="14 18" stroke-linecap="round" opacity="0.4"/>
+
+  <!-- Dynamic Equalizer Music Wave Bars (Left & Right Flanks) -->
+  <g opacity="0.85">
+    <!-- Left Equalizer bars -->
+    <rect x="120" y="232" width="8" height="48" rx="4" fill="#34d399" opacity="0.6"/>
+    <rect x="136" y="212" width="8" height="88" rx="4" fill="#10b981" opacity="0.8"/>
+    <rect x="152" y="196" width="8" height="120" rx="4" fill="#10b981" opacity="0.9"/>
+
+    <!-- Right Equalizer bars -->
+    <rect x="352" y="196" width="8" height="120" rx="4" fill="#10b981" opacity="0.9"/>
+    <rect x="368" y="212" width="8" height="88" rx="4" fill="#06b6d4" opacity="0.8"/>
+    <rect x="384" y="232" width="8" height="48" rx="4" fill="#38bdf8" opacity="0.6"/>
+  </g>
+
+  <!-- The Central Iconic "S" Soundwave Ribbon -->
+  <!-- Top Curve of S: flowing music arc -->
+  <path d="M 330 162
+           C 285 128, 205 130, 185 174
+           C 168 212, 198 242, 238 252
+           L 274 260
+           C 314 270, 344 298, 328 338
+           C 308 382, 226 384, 182 350"
+        fill="none"
+        stroke="url(#streamGradTop)"
+        stroke-width="32"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        filter="url(#softGlow)"/>
+
+  <!-- Top Inner Accent Stream -->
+  <path d="M 324 162
+           C 285 134, 215 136, 196 174
+           C 182 202, 206 226, 238 234"
+        fill="none"
+        stroke="#ecfdf5"
+        stroke-width="8"
+        stroke-linecap="round"
+        opacity="0.9"/>
+
+  <!-- Bottom Accent Stream -->
+  <path d="M 274 278
+           C 306 286, 330 310, 316 338
+           C 297 376, 227 378, 188 350"
+        fill="none"
+        stroke="#e0f2fe"
+        stroke-width="8"
+        stroke-linecap="round"
+        opacity="0.85"/>
+
+  <!-- Core Pulsing Music Dots / Nodes -->
+  <circle cx="256" cy="256" r="9" fill="#ffffff" filter="url(#softGlow)"/>
+  <circle cx="256" cy="256" r="5" fill="#34d399"/>
+</svg>
