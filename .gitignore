@@ -1,4 +1,3 @@
-.env
 music/*
 !music/.gitkeep
 config/navidrome/*
