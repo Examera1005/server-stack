@@ -29,11 +29,9 @@ services:
     environment:
       - MUSIC_DIR=/music
       - DEEMIX_CONFIG_DIR=/root/.config/deemix
-      - NAVIDROME_CONTAINER=navidrome
       - NAVIDROME_PORT=${NAVIDROME_PORT:-4533}
       - NAVIDROME_INTERNAL_URL=http://navidrome:4533
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - ${MUSIC_DIR:-./music}:/music:rw
       - ./config/deemix:/root/.config/deemix
       - ./config/streamvault:/data

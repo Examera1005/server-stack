@@ -24,12 +24,14 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 MUSIC_DIR = os.getenv("MUSIC_DIR", "/music")
 CONFIG_DIR = os.getenv("DEEMIX_CONFIG_DIR", "/root/.config/deemix")
-NAVIDROME_CONTAINER = os.getenv("NAVIDROME_CONTAINER", "navidrome")
 NAVIDROME_PORT = os.getenv("NAVIDROME_PORT", "4533")
 NAVIDROME_INTERNAL_URL = os.getenv("NAVIDROME_INTERNAL_URL", "http://navidrome:4533").rstrip("/")
 DATA_DIR = "/data" if os.path.isdir("/data") else os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(DATA_DIR, "history.db")
 SECRET_KEY_FILE = os.path.join(DATA_DIR, ".secret_key")
+
+# Cached Subsonic credentials to trigger instant Navidrome scans over HTTP
+_SCAN_AUTH = {}
 
 def load_or_create_secret_key():
     env_key = os.getenv("SECRET_KEY")
@@ -50,8 +52,7 @@ def load_or_create_secret_key():
 
 app.secret_key = load_or_create_secret_key()
 
-# Simple brute-force rate limiter per IP
-_LOGIN_ATTEMPTS = {}  # ip -> [timestamps]
+_LOGIN_ATTEMPTS = {}
 MAX_LOGIN_ATTEMPTS = 6
 LOGIN_WINDOW_SECONDS = 60
 
@@ -76,13 +77,17 @@ def verify_navidrome_credentials(username, password):
         )
         if resp.status_code == 200:
             data = resp.json()
+            if data.get("subsonicToken") and data.get("subsonicSalt"):
+                _SCAN_AUTH["u"] = data.get("username") or username
+                _SCAN_AUTH["t"] = data["subsonicToken"]
+                _SCAN_AUTH["s"] = data["subsonicSalt"]
             return data.get("name") or data.get("username") or username
     except Exception as e:
         app.logger.error(f"Navidrome auth check error: {e}")
     return None
 
 TARGET_CONFIG = {
-    "main": {"dir": MUSIC_DIR, "container": NAVIDROME_CONTAINER, "label": "Bibliothèque Navidrome"}
+    "main": {"dir": MUSIC_DIR, "label": "Bibliothèque Navidrome"}
 }
 
 VALID_TARGETS = set(TARGET_CONFIG.keys())
@@ -151,6 +156,10 @@ def sanitize_string(val, max_len=255):
         return ""
     cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', val).strip()
     return cleaned[:max_len]
+
+def safe_filename(val):
+    cleaned = re.sub(r'[\\/:*?"<>|\x00-\x1f]', '_', (val or '').strip())
+    return cleaned[:120] or "Unknown"
 
 def get_db():
     conn = sqlite3.connect(DB_PATH, timeout=20.0)
@@ -262,14 +271,23 @@ def clear_all_history():
         conn.commit()
 
 def trigger_navidrome_scan(target_dest="main"):
-    cfg = TARGET_CONFIG.get(target_dest, TARGET_CONFIG["main"])
-    container = cfg["container"]
-    try:
-        docker_bin = "/usr/bin/docker" if os.path.exists("/usr/bin/docker") else "docker"
-        subprocess.run([docker_bin, "exec", container, "/app/navidrome", "scan", "--full"], timeout=60)
-        app.logger.info(f"Navidrome scan triggered for container {container}")
-    except Exception as e:
-        app.logger.warning(f"Navidrome auto-scan will handle update ({e})")
+    if _SCAN_AUTH.get("u") and _SCAN_AUTH.get("t") and _SCAN_AUTH.get("s"):
+        try:
+            requests.get(
+                f"{NAVIDROME_INTERNAL_URL}/rest/startScan.view",
+                params={
+                    "u": _SCAN_AUTH["u"],
+                    "t": _SCAN_AUTH["t"],
+                    "s": _SCAN_AUTH["s"],
+                    "v": "1.16.1",
+                    "c": "StreamVault",
+                    "f": "json"
+                },
+                timeout=5
+            )
+            app.logger.info("Navidrome scan triggered via Subsonic HTTP API")
+        except Exception as e:
+            app.logger.warning(f"Navidrome auto-scan will handle update ({e})")
 
 @app.after_request
 def apply_security_headers(response):
@@ -357,33 +375,50 @@ def get_album(album_id):
         app.logger.error(f"Album error: {e}")
         return jsonify({"error": "Erreur lors de la récupération de l'album"}), 500
 
-def get_search_query_from_url(url, fallback_title):
+def get_metadata_from_url(url, fallback_title, fallback_artist="", fallback_cover=""):
+    meta = {"title": fallback_title, "artist": fallback_artist or "Artiste", "album": fallback_title, "cover": fallback_cover}
     try:
         track_match = re.search(r'track/(\d+)', url)
         if track_match:
             r = requests.get(f"https://api.deezer.com/track/{track_match.group(1)}", timeout=5).json()
-            artist = r.get("artist", {}).get("name", "")
-            title = r.get("title", "")
-            if artist and title:
-                return f"{artist} - {title}"
+            meta["artist"] = r.get("artist", {}).get("name") or meta["artist"]
+            meta["title"] = r.get("title") or meta["title"]
+            meta["album"] = r.get("album", {}).get("title") or meta["title"]
+            meta["cover"] = r.get("album", {}).get("cover_big") or meta["cover"]
+            return meta
         
         album_match = re.search(r'album/(\d+)', url)
         if album_match:
             r = requests.get(f"https://api.deezer.com/album/{album_match.group(1)}", timeout=5).json()
-            artist = r.get("artist", {}).get("name", "")
-            title = r.get("title", "")
-            if artist and title:
-                return f"{artist} - {title}"
+            meta["artist"] = r.get("artist", {}).get("name") or meta["artist"]
+            meta["title"] = r.get("title") or meta["title"]
+            meta["album"] = meta["title"]
+            meta["cover"] = r.get("cover_big") or meta["cover"]
     except Exception as e:
         app.logger.error(f"Error fetching Deezer metadata for {url}: {e}")
-    
-    return fallback_title
+    return meta
 
-def perform_download(entry_id, target_url, title, music_dest, target_dest="main"):
+def tag_m4a_file(file_path, meta):
+    try:
+        from mutagen.mp4 import MP4, MP4Cover
+        audio = MP4(file_path)
+        audio["\xa9nam"] = [meta["title"]]
+        audio["\xa9ART"] = [meta["artist"]]
+        audio["aART"] = [meta["artist"]]
+        audio["\xa9alb"] = [meta["album"]]
+        if meta.get("cover") and is_valid_url(meta["cover"]):
+            img_data = requests.get(meta["cover"], timeout=5).content
+            audio["covr"] = [MP4Cover(img_data, imageformat=MP4Cover.FORMAT_JPEG)]
+        audio.save()
+    except Exception as e:
+        app.logger.warning(f"M4A tagging warning: {e}")
+
+def perform_download(entry_id, target_url, title, artist, cover_url, music_dest, target_dest="main"):
     if not is_valid_url(target_url):
         update_history_status(entry_id, "failed", error_message="URL invalide ou non autorisée")
         return
 
+    # Attempt 1: Local Deemix CLI (if .arl is present)
     arl_file = os.path.join(CONFIG_DIR, ".arl")
     if os.path.isfile(arl_file) and os.path.getsize(arl_file) > 0:
         app.logger.info(f"[Download #{entry_id}] Trying Deemix for: {target_url}")
@@ -400,27 +435,36 @@ def perform_download(entry_id, target_url, title, music_dest, target_dest="main"
         except Exception as e:
             app.logger.warning(f"[Download #{entry_id}] Deemix exception: {e}")
 
-    query = get_search_query_from_url(target_url, title)
-    app.logger.info(f"[Download #{entry_id}] Fallback to SpotDL with query: '{query}' -> {music_dest}")
-    spotdl_cmd = [
-        "spotdl", "download",
-        "--output", f"{music_dest}/{{artist}}/{{album}}/{{artist}} - {{title}}.{{output-ext}}",
-        "--", query
+    # Fallback: Fast native M4A audio stream via yt-dlp + Mutagen tagging (no ffmpeg required)
+    meta = get_metadata_from_url(target_url, title, artist, cover_url)
+    query = f"{meta['artist']} - {meta['title']}"
+    out_dir = os.path.join(music_dest, safe_filename(meta["artist"]), safe_filename(meta["album"]))
+    os.makedirs(out_dir, exist_ok=True)
+    out_file = os.path.join(out_dir, f"{safe_filename(meta['artist'])} - {safe_filename(meta['title'])}.m4a")
+
+    app.logger.info(f"[Download #{entry_id}] Fallback to yt-dlp M4A with query: '{query}' -> {out_file}")
+    ytdlp_cmd = [
+        "yt-dlp",
+        "-f", "ba[ext=m4a]/ba",
+        "--no-playlist",
+        "-o", out_file,
+        f"ytsearch1:{query}"
     ]
     try:
-        res = subprocess.run(spotdl_cmd, capture_output=True, text=True, timeout=180)
-        if res.returncode == 0:
-            app.logger.info(f"[Download #{entry_id}] SpotDL download successful for: {query}")
+        res = subprocess.run(ytdlp_cmd, capture_output=True, text=True, timeout=120)
+        if res.returncode == 0 and os.path.isfile(out_file):
+            tag_m4a_file(out_file, meta)
+            app.logger.info(f"[Download #{entry_id}] yt-dlp download successful for: {query}")
             update_history_status(entry_id, "completed")
             trigger_navidrome_scan(target_dest)
         else:
             err_msg = (res.stderr or res.stdout or f"Échec code {res.returncode}").strip()
             if len(err_msg) > 200:
                 err_msg = err_msg[-200:]
-            app.logger.error(f"[Download #{entry_id}] SpotDL failed (code {res.returncode}): {err_msg}")
+            app.logger.error(f"[Download #{entry_id}] yt-dlp failed (code {res.returncode}): {err_msg}")
             update_history_status(entry_id, "failed", error_message=err_msg)
     except Exception as e:
-        app.logger.error(f"[Download #{entry_id}] SpotDL exception: {e}")
+        app.logger.error(f"[Download #{entry_id}] yt-dlp exception: {e}")
         update_history_status(entry_id, "failed", error_message=str(e)[:200])
 
 @app.route("/api/download", methods=["POST"])
@@ -443,7 +487,7 @@ def download():
     entry_id = add_history_entry(title, artist, cover_url, target_url, target_dest, item_type, "downloading")
     app.logger.info(f"Download requested: {title} ({target_url}) -> {dest_label} [ID {entry_id}]")
 
-    t = threading.Thread(target=perform_download, args=(entry_id, target_url, title, music_dest, target_dest))
+    t = threading.Thread(target=perform_download, args=(entry_id, target_url, title, artist, cover_url, music_dest, target_dest))
     t.daemon = True
     t.start()
 
@@ -512,7 +556,7 @@ def retry_history():
     music_dest = dest_info["dir"]
 
     new_id = add_history_entry(title, artist, cover_url, target_url, target_dest, item_type, "downloading")
-    t = threading.Thread(target=perform_download, args=(new_id, target_url, title, music_dest, target_dest))
+    t = threading.Thread(target=perform_download, args=(new_id, target_url, title, artist, cover_url, music_dest, target_dest))
     t.daemon = True
     t.start()
 
